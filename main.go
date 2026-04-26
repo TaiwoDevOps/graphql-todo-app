@@ -11,6 +11,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/TaiwoDevOps/todo-graphql/graph"
+	"github.com/TaiwoDevOps/todo-graphql/middleware"
 	"github.com/TaiwoDevOps/todo-graphql/models"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -38,8 +39,12 @@ func main() {
 		Cache: lru.New[string](100),
 	})
 
+	var hdr http.Handler = srv
+	hdr = middleware.Logging(hdr)
+	hdr = middleware.RequestID(hdr)
+
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", srv)
+	http.Handle("/query", hdr)
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
