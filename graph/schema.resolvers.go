@@ -40,13 +40,7 @@ func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) 
 		}
 	}
 
-	return &model.Todo{
-		ID:        createdTodo.ID,
-		Text:      createdTodo.Text,
-		Done:      createdTodo.Done,
-		CreatedAt: createdTodo.CreatedAt,
-		UpdatedAt: createdTodo.UpdatedAt,
-	}, nil
+	return convertTodo(createdTodo), nil
 }
 
 // UpdateTodo is the resolver for the updateTodo field.
@@ -70,13 +64,7 @@ func (r *mutationResolver) UpdateTodo(ctx context.Context, id string, input mode
 		return nil, err
 	}
 
-	return &model.Todo{
-		ID:        updatedTodo.ID,
-		Text:      updatedTodo.Text,
-		Done:      updatedTodo.Done,
-		CreatedAt: updatedTodo.CreatedAt,
-		UpdatedAt: updatedTodo.UpdatedAt,
-	}, nil
+	return convertTodo(updatedTodo), nil
 }
 
 // DeleteTodo is the resolver for the deleteTodo field.
@@ -104,32 +92,14 @@ func (r *mutationResolver) ToggleTodo(ctx context.Context, id string) (*model.To
 		}
 	}
 
-	return &model.Todo{
-		ID:        toggledTodo.ID,
-		Text:      toggledTodo.Text,
-		Done:      toggledTodo.Done,
-		CreatedAt: toggledTodo.CreatedAt,
-		UpdatedAt: toggledTodo.UpdatedAt,
-	}, nil
+	return convertTodo(toggledTodo),
+		nil
 }
 
 // Todos is the resolver for the todos field.
 func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
-	todos := r.TodoStrore.GetAll()
 
-	result := make([]*model.Todo, len(todos))
-
-	for i, todo := range todos {
-		result[i] = &model.Todo{
-			ID:        todo.ID,
-			Text:      todo.Text,
-			Done:      todo.Done,
-			CreatedAt: todo.CreatedAt,
-			UpdatedAt: todo.UpdatedAt,
-		}
-	}
-
-	return result, nil
+	return convertTodos(r.TodoStrore.GetAll()), nil
 }
 
 // Todo is the resolver for the todo field.
@@ -143,32 +113,14 @@ func (r *queryResolver) Todo(ctx context.Context, id string) (*model.Todo, error
 		}
 	}
 
-	return &model.Todo{
-		ID:        todo.ID,
-		Text:      todo.Text,
-		Done:      todo.Done,
-		CreatedAt: todo.CreatedAt,
-		UpdatedAt: todo.UpdatedAt,
-	}, nil
+	return convertTodo(todo), nil
 }
 
 // TodoByStatus is the resolver for the todoByStatus field.
 func (r *queryResolver) TodoByStatus(ctx context.Context, done bool) ([]*model.Todo, error) {
-	todos := r.TodoStrore.GetByStatus(done)
 
-	result := make([]*model.Todo, len(todos))
+	return convertTodos(r.TodoStrore.GetByStatus(done)), nil
 
-	for i, todo := range todos {
-		result[i] = &model.Todo{
-			ID:        todo.ID,
-			Text:      todo.Text,
-			Done:      todo.Done,
-			CreatedAt: todo.CreatedAt,
-			UpdatedAt: todo.UpdatedAt,
-		}
-	}
-
-	return result, nil
 }
 
 // Mutation returns MutationResolver implementation.

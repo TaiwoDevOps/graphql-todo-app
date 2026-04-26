@@ -38,6 +38,7 @@ func main() {
 	srv.Use(extension.AutomaticPersistedQuery{
 		Cache: lru.New[string](100),
 	})
+	srv.Use(extension.FixedComplexityLimit(60))
 
 	var hdr http.Handler = srv
 	hdr = middleware.Logging(hdr)
