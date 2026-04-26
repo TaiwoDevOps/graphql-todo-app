@@ -1,0 +1,33 @@
+#  Query is where we will query the data
+type Query {
+  todos: [Todo!]!
+  todo(id: ID!): Todo
+  todoByStatus(done: Boolean!): [Todo!]!
+}
+
+# Mutation is where we will mutate the data
+type Mutation {
+  createTodo(input: NewTodo!): Todo!
+  updateTodo(id: ID!, input: UpdateTodo!): Todo
+  deleteTodo(id: ID!): Boolean!
+  toggleTodo(id: ID!): Todo
+}
+
+# Todo model itself
+type Todo {
+  id: ID!
+  text: String!
+  done: Boolean!
+  createdAt: String!
+}
+
+#  creating a todo
+input NewTodo {
+  text: String!
+}
+
+#  updating a todo
+input UpdateTodo {
+  text: String
+  done: Boolean
+}
