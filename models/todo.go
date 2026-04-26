@@ -2,8 +2,12 @@ package models
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
+
+	"github.com/TaiwoDevOps/todo-graphql/errors"
+	"github.com/TaiwoDevOps/todo-graphql/utils"
 )
 
 type Todo struct {
@@ -15,15 +19,17 @@ type Todo struct {
 }
 
 type TodoStrore struct {
-	mu     sync.RWMutex
-	todos  map[string]*Todo
-	nextID int
+	mu        sync.RWMutex
+	todos     map[string]*Todo
+	textIndex map[string]int
+	nextID    int
 }
 
 func NewtodoStore() *TodoStrore {
 	return &TodoStrore{
-		todos:  make(map[string]*Todo),
-		nextID: 1,
+		todos:     make(map[string]*Todo),
+		textIndex: make(map[string]int),
+		nextID:    1,
 	}
 }
 
@@ -68,7 +74,13 @@ func (s *TodoStrore) CreateTodo(text string) *Todo {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	norm := utils.Normalize(text)
+	if _, exists := s.textIndex[norm]; exists {
+		return nil
+	}
+
 	id := fmt.Sprintf("%d", s.nextID)
+	s.textIndex[norm] = s.nextID
 	s.nextID++
 
 	todo := &Todo{
@@ -85,14 +97,36 @@ func (s *TodoStrore) CreateTodo(text string) *Todo {
 }
 
 // UpdateTodo updates a todo by its ID
-func (s *TodoStrore) UpdateTodo(id string, text *string, done *bool) *Todo {
+func (s *TodoStrore) UpdateTodo(id string, text *string, done *bool) (*Todo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	todo := s.todos[id]
 	if todo == nil {
-		return nil
+		return nil, &errors.NotFoundError{
+			Resource: "Todo",
+			ID:       id,
+		}
 	}
+
+	oldNorm := utils.Normalize(todo.Text)
+	newNorm := utils.Normalize(*text)
+	currentId := todo.ID
+	existingID := s.textIndex[newNorm]
+
+	currentIdInt, _ := strconv.Atoi(currentId)
+
+	if existingID != 0 && existingID != currentIdInt {
+		return nil, &errors.DuplicateError{
+			Resource: "Todo",
+			Field:    "text",
+			Value:    *text,
+		}
+	}
+
+	// update index
+	delete(s.textIndex, oldNorm)
+	s.textIndex[newNorm] = currentIdInt
 
 	if text != nil {
 		todo.Text = *text
@@ -105,7 +139,7 @@ func (s *TodoStrore) UpdateTodo(id string, text *string, done *bool) *Todo {
 	todo.UpdatedAt = time.Now().Format(time.RFC3339)
 
 	s.todos[id] = todo
-	return todo
+	return todo, nil
 }
 
 // DeleteTodo deletes a todo by its ID

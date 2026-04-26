@@ -7,14 +7,38 @@ package graph
 
 import (
 	"context"
-	"fmt"
+	"strings"
 
+	"github.com/TaiwoDevOps/todo-graphql/errors"
 	"github.com/TaiwoDevOps/todo-graphql/graph/model"
 )
 
 // CreateTodo is the resolver for the createTodo field.
 func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
+
+	if len(strings.TrimSpace(input.Text)) == 0 {
+		return nil, &errors.ValidationError{
+			Field: "text",
+			Msg:   "text cannot be empty",
+		}
+	}
+
+	if len(input.Text) > 255 {
+		return nil, &errors.ValidationError{
+			Field: "text",
+			Msg:   "text cannot be longer than 255 characters",
+		}
+	}
+
 	createdTodo := r.TodoStrore.CreateTodo(input.Text)
+
+	if createdTodo == nil {
+		return nil, &errors.DuplicateError{
+			Resource: "Todo",
+			Field:    "text",
+			Value:    input.Text,
+		}
+	}
 
 	return &model.Todo{
 		ID:        createdTodo.ID,
@@ -27,10 +51,23 @@ func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) 
 
 // UpdateTodo is the resolver for the updateTodo field.
 func (r *mutationResolver) UpdateTodo(ctx context.Context, id string, input model.UpdateTodo) (*model.Todo, error) {
-	updatedTodo := r.TodoStrore.UpdateTodo(id, input.Text, input.Done)
 
-	if updatedTodo == nil {
-		return nil, fmt.Errorf("todo not found")
+	if len(strings.TrimSpace(*input.Text)) == 0 {
+		return nil, &errors.ValidationError{
+			Field: "text",
+			Msg:   "text cannot be empty",
+		}
+	}
+
+	if len(*input.Text) > 255 {
+		return nil, &errors.ValidationError{
+			Field: "text",
+			Msg:   "text cannot be longer than 255 characters",
+		}
+	}
+	updatedTodo, err := r.TodoStrore.UpdateTodo(id, input.Text, input.Done)
+	if err != nil {
+		return nil, err
 	}
 
 	return &model.Todo{
@@ -47,11 +84,13 @@ func (r *mutationResolver) DeleteTodo(ctx context.Context, id string) (bool, err
 	status := r.TodoStrore.DeleteTodo(id)
 
 	if !status {
-		return false, fmt.Errorf("todo not found")
+		return false, &errors.NotFoundError{
+			Resource: "Todo",
+			ID:       id,
+		}
 	}
 
 	return true, nil
-
 }
 
 // ToggleTodo is the resolver for the toggleTodo field.
@@ -59,7 +98,10 @@ func (r *mutationResolver) ToggleTodo(ctx context.Context, id string) (*model.To
 	toggledTodo := r.TodoStrore.ToggleTodo(id)
 
 	if toggledTodo == nil {
-		return nil, fmt.Errorf("todo not found")
+		return nil, &errors.NotFoundError{
+			Resource: "Todo",
+			ID:       id,
+		}
 	}
 
 	return &model.Todo{
@@ -95,7 +137,10 @@ func (r *queryResolver) Todo(ctx context.Context, id string) (*model.Todo, error
 	todo := r.TodoStrore.GetByID(id)
 
 	if todo == nil {
-		return nil, fmt.Errorf("todo not found")
+		return nil, &errors.NotFoundError{
+			Resource: "Todo",
+			ID:       id,
+		}
 	}
 
 	return &model.Todo{
