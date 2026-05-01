@@ -7,44 +7,120 @@ package graph
 
 import (
 	"context"
-	"fmt"
+	"strings"
 
+	"github.com/TaiwoDevOps/todo-graphql/errors"
 	"github.com/TaiwoDevOps/todo-graphql/graph/model"
 )
 
 // CreateTodo is the resolver for the createTodo field.
 func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: CreateTodo - createTodo"))
+
+	if len(strings.TrimSpace(input.Text)) == 0 {
+		return nil, &errors.ValidationError{
+			Field: "text",
+			Msg:   "text cannot be empty",
+		}
+	}
+
+	if len(input.Text) > 255 {
+		return nil, &errors.ValidationError{
+			Field: "text",
+			Msg:   "text cannot be longer than 255 characters",
+		}
+	}
+
+	createdTodo := r.TodoStrore.CreateTodo(input.Text)
+
+	if createdTodo == nil {
+		return nil, &errors.DuplicateError{
+			Resource: "Todo",
+			Field:    "text",
+			Value:    input.Text,
+		}
+	}
+
+	return convertTodo(createdTodo), nil
 }
 
 // UpdateTodo is the resolver for the updateTodo field.
 func (r *mutationResolver) UpdateTodo(ctx context.Context, id string, input model.UpdateTodo) (*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: UpdateTodo - updateTodo"))
+
+	if len(strings.TrimSpace(*input.Text)) == 0 {
+		return nil, &errors.ValidationError{
+			Field: "text",
+			Msg:   "text cannot be empty",
+		}
+	}
+
+	if len(*input.Text) > 255 {
+		return nil, &errors.ValidationError{
+			Field: "text",
+			Msg:   "text cannot be longer than 255 characters",
+		}
+	}
+	updatedTodo, err := r.TodoStrore.UpdateTodo(id, input.Text, input.Done)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertTodo(updatedTodo), nil
 }
 
 // DeleteTodo is the resolver for the deleteTodo field.
 func (r *mutationResolver) DeleteTodo(ctx context.Context, id string) (bool, error) {
-	panic(fmt.Errorf("not implemented: DeleteTodo - deleteTodo"))
+	status := r.TodoStrore.DeleteTodo(id)
+
+	if !status {
+		return false, &errors.NotFoundError{
+			Resource: "Todo",
+			ID:       id,
+		}
+	}
+
+	return true, nil
 }
 
 // ToggleTodo is the resolver for the toggleTodo field.
 func (r *mutationResolver) ToggleTodo(ctx context.Context, id string) (*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: ToggleTodo - toggleTodo"))
+	toggledTodo := r.TodoStrore.ToggleTodo(id)
+
+	if toggledTodo == nil {
+		return nil, &errors.NotFoundError{
+			Resource: "Todo",
+			ID:       id,
+		}
+	}
+
+	return convertTodo(toggledTodo),
+		nil
 }
 
 // Todos is the resolver for the todos field.
 func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: Todos - todos"))
+
+	return convertTodos(r.TodoStrore.GetAll()), nil
 }
 
 // Todo is the resolver for the todo field.
 func (r *queryResolver) Todo(ctx context.Context, id string) (*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: Todo - todo"))
+	todo := r.TodoStrore.GetByID(id)
+
+	if todo == nil {
+		return nil, &errors.NotFoundError{
+			Resource: "Todo",
+			ID:       id,
+		}
+	}
+
+	return convertTodo(todo), nil
 }
 
 // TodoByStatus is the resolver for the todoByStatus field.
 func (r *queryResolver) TodoByStatus(ctx context.Context, done bool) ([]*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: TodoByStatus - todoByStatus"))
+
+	return convertTodos(r.TodoStrore.GetByStatus(done)), nil
+
 }
 
 // Mutation returns MutationResolver implementation.

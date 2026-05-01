@@ -11,6 +11,8 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/TaiwoDevOps/todo-graphql/graph"
+	"github.com/TaiwoDevOps/todo-graphql/middleware"
+	"github.com/TaiwoDevOps/todo-graphql/models"
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
@@ -21,8 +23,10 @@ func main() {
 	if port == "" {
 		port = defaultPort
 	}
-
-	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}}))
+	resolver := &graph.Resolver{
+		TodoStrore: models.NewtodoStore(),
+	}
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
 
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.GET{})
@@ -34,9 +38,14 @@ func main() {
 	srv.Use(extension.AutomaticPersistedQuery{
 		Cache: lru.New[string](100),
 	})
+	srv.Use(extension.FixedComplexityLimit(60))
+
+	var hdr http.Handler = srv
+	hdr = middleware.Logging(hdr)
+	hdr = middleware.RequestID(hdr)
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", srv)
+	http.Handle("/query", hdr)
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
